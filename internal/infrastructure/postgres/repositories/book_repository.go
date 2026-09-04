@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -29,7 +31,7 @@ func (r *BookRepository) Create(ctx context.Context, book domain.Book) error {
 		authorNames(book.Authors), book.CreatedAt, book.UpdatedAt,
 	)
 	if err != nil {
-		return fmt.Errorf("create book: %w", err)
+		return fmt.Errorf("insert book: %w", err)
 	}
 	return nil
 }
@@ -37,17 +39,14 @@ func (r *BookRepository) Create(ctx context.Context, book domain.Book) error {
 func (r *BookRepository) GetByID(ctx context.Context, id string) (domain.Book, error) {
 	rows, err := r.pool.Query(ctx, `SELECT `+bookColumns+` FROM books WHERE id = $1`, id)
 	if err != nil {
-		return domain.Book{}, fmt.Errorf("get book: %w", err)
+		return domain.Book{}, err
 	}
 
 	book, err := pgx.CollectExactlyOneRow(rows, scanBook)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Book{}, domain.ErrNotFound
 	}
-	if err != nil {
-		return domain.Book{}, fmt.Errorf("get book: %w", err)
-	}
-	return book, nil
+	return book, err
 }
 
 func (r *BookRepository) List(ctx context.Context, limit, offset int) ([]domain.Book, int, error) {
@@ -64,37 +63,95 @@ func (r *BookRepository) List(ctx context.Context, limit, offset int) ([]domain.
 		ORDER BY created_at DESC, id DESC
 		LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
-		return nil, 0, fmt.Errorf("list books: %w", err)
+		return nil, 0, fmt.Errorf("select page: %w", err)
 	}
 
 	books, err := pgx.CollectRows(rows, scanBook)
 	if err != nil {
-		return nil, 0, fmt.Errorf("list books: %w", err)
+		return nil, 0, fmt.Errorf("select page: %w", err)
 	}
 	return books, total, nil
 }
 
+// FOR UPDATE is what makes the diff correct: under READ COMMITTED two
+// concurrent updates would otherwise both read the same "before" and each
+// record a change from a state that no longer existed.
 func (r *BookRepository) Update(ctx context.Context, book domain.Book) (domain.Book, error) {
-	rows, err := r.pool.Query(ctx, `
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return domain.Book{}, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	rows, err := tx.Query(ctx, `SELECT `+bookColumns+` FROM books WHERE id = $1 FOR UPDATE`, book.ID)
+	if err != nil {
+		return domain.Book{}, fmt.Errorf("lock book: %w", err)
+	}
+
+	current, err := pgx.CollectExactlyOneRow(rows, scanBook)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Book{}, domain.ErrNotFound
+	}
+	if err != nil {
+		return domain.Book{}, fmt.Errorf("lock book: %w", err)
+	}
+
+	// Read while holding the lock, so occurred_at orders as the updates serialised.
+	now := time.Now().UTC()
+
+	changes := domain.Diff(current, book)
+	if len(changes) == 0 {
+		return current, tx.Commit(ctx)
+	}
+
+	rows, err = tx.Query(ctx, `
 		UPDATE books
 		SET title = $2, description = $3, published_on = $4, authors = $5, updated_at = $6
 		WHERE id = $1
 		RETURNING `+bookColumns,
 		book.ID, book.Title, book.Description, book.PublishedOn,
-		authorNames(book.Authors), book.UpdatedAt,
+		authorNames(book.Authors), now,
 	)
 	if err != nil {
-		return domain.Book{}, fmt.Errorf("update book: %w", err)
+		return domain.Book{}, fmt.Errorf("update book row: %w", err)
 	}
 
 	updated, err := pgx.CollectExactlyOneRow(rows, scanBook)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.Book{}, domain.ErrNotFound
-	}
 	if err != nil {
-		return domain.Book{}, fmt.Errorf("update book: %w", err)
+		return domain.Book{}, fmt.Errorf("update book row: %w", err)
+	}
+
+	if err := recordChanges(ctx, tx, book.ID, changes, now); err != nil {
+		return domain.Book{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return domain.Book{}, fmt.Errorf("commit: %w", err)
 	}
 	return updated, nil
+}
+
+// Inserted in Diff's order, so the ascending id encodes order within the set.
+func recordChanges(ctx context.Context, tx pgx.Tx, bookID string, changes []domain.Change, occurredAt time.Time) error {
+	if len(changes) == 0 {
+		return nil
+	}
+
+	changeSetID, err := uuid.NewV7()
+	if err != nil {
+		return fmt.Errorf("generate change set id: %w", err)
+	}
+
+	for _, change := range changes {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO changes (book_id, change_set_id, occurred_at, field, kind, old_value, new_value)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			bookID, changeSetID.String(), occurredAt, change.Field, change.Kind, change.OldValue, change.NewValue,
+		); err != nil {
+			return fmt.Errorf("record change: %w", err)
+		}
+	}
+	return nil
 }
 
 func scanBook(row pgx.CollectableRow) (domain.Book, error) {

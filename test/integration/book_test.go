@@ -18,7 +18,7 @@ const hobbitBody = `{"title":"The Hobbit","description":"There and back again.",
 	"published_on":"1937-09-21","authors":["J.R.R. Tolkien","Christopher Tolkien"]}`
 
 func TestBookLifecycle(t *testing.T) {
-	mux := support.NewBookMux(t)
+	mux := support.NewBookAPI(t).Mux
 
 	created := send(t, mux, http.MethodPost, "/books", hobbitBody)
 	require.Equal(t, http.StatusCreated, created.Code)
@@ -49,7 +49,7 @@ func TestBookLifecycle(t *testing.T) {
 }
 
 func TestUnknownBook(t *testing.T) {
-	mux := support.NewBookMux(t)
+	mux := support.NewBookAPI(t).Mux
 
 	const unknown = "01a06d75-0000-7000-8000-000000000000"
 
@@ -58,7 +58,7 @@ func TestUnknownBook(t *testing.T) {
 }
 
 func TestMalformedBookID(t *testing.T) {
-	mux := support.NewBookMux(t)
+	mux := support.NewBookAPI(t).Mux
 
 	// An id the column cannot hold is a client error, caught before storage.
 	w := send(t, mux, http.MethodGet, "/books/not-a-uuid", "")
@@ -72,7 +72,7 @@ func TestMalformedBookID(t *testing.T) {
 }
 
 func TestCreateRejectsInvalidBook(t *testing.T) {
-	mux := support.NewBookMux(t)
+	mux := support.NewBookAPI(t).Mux
 
 	w := send(t, mux, http.MethodPost, "/books", `{"title":"","published_on":"1937-09-21","authors":[]}`)
 
@@ -88,7 +88,7 @@ func TestCreateRejectsInvalidBook(t *testing.T) {
 }
 
 func TestListBooksPaginates(t *testing.T) {
-	mux := support.NewBookMux(t)
+	mux := support.NewBookAPI(t).Mux
 
 	for _, title := range []string{"First", "Second", "Third"} {
 		body := `{"title":"` + title + `","published_on":"2001-01-01","authors":["A"]}`
@@ -107,14 +107,14 @@ func TestListBooksPaginates(t *testing.T) {
 }
 
 func TestEmptyListIsAnEmptyPage(t *testing.T) {
-	page := decodePage(t, send(t, support.NewBookMux(t), http.MethodGet, "/books", ""))
+	page := decodePage(t, send(t, support.NewBookAPI(t).Mux, http.MethodGet, "/books", ""))
 
 	assert.Empty(t, page.Data)
 	assert.Equal(t, 0, page.Total)
 }
 
 func TestUnsupportedMethod(t *testing.T) {
-	w := send(t, support.NewBookMux(t), http.MethodDelete, "/books/01a06d75-0000-7000-8000-000000000000", "")
+	w := send(t, support.NewBookAPI(t).Mux, http.MethodDelete, "/books/01a06d75-0000-7000-8000-000000000000", "")
 
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	assert.Contains(t, w.Header().Get("Allow"), http.MethodGet)

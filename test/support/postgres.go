@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -38,9 +39,16 @@ var (
 	containerErr  error
 )
 
-// NewBookMux builds the real stack — pool, migrations, repository, service,
-// handler — against a throwaway database, and hands back a truncated one.
-func NewBookMux(t *testing.T) *http.ServeMux {
+// API is the real stack against a throwaway database. Pool is exposed so tests
+// can assert on persisted state that no endpoint exposes yet.
+type API struct {
+	Mux  *http.ServeMux
+	Pool *pgxpool.Pool
+}
+
+// NewBookAPI builds pool, migrations, repository, service and handler against a
+// truncated database.
+func NewBookAPI(t *testing.T) API {
 	t.Helper()
 
 	ctx := context.Background()
@@ -52,14 +60,14 @@ func NewBookMux(t *testing.T) *http.ServeMux {
 
 	migrate(ctx, t, client)
 
-	_, err = client.Pool.Exec(ctx, "TRUNCATE books")
+	_, err = client.Pool.Exec(ctx, "TRUNCATE books, changes")
 	require.NoError(t, err)
 
 	service := application.NewBookService(repositories.NewBookRepository(client.Pool), logger)
 
 	mux := http.NewServeMux()
 	handlers.NewBookHandler(service, logger).RegisterRoutes(mux)
-	return mux
+	return API{Mux: mux, Pool: client.Pool}
 }
 
 // DatabaseURL prefers an already-running database so the suite can be pointed

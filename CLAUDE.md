@@ -5,7 +5,7 @@ Go HTTP service managing books and a history of the changes made to them.
 ## Architecture
 
 - Layering: `domain` <- `application` <- `infrastructure`, wired by hand in `internal/server/`. No wire/dig.
-- `domain` imports nothing from the project. It holds the entities and the pure logic over them — business invariants, diffing, rendering. It does **not** parse or format-check input; that belongs to the DTO layer.
+- `domain` holds the entities and the pure logic over them — business invariants and diffing. It imports nothing from the project except `pkg/`, which is dependency-free leaf helpers. It does **not** parse or format-check input, and it does **not** render prose for clients; both belong to the DTO layer.
 - `application` holds use-case services and **declares the repository interfaces it needs**; `infrastructure` implements them.
 - Handlers declare the service interface they depend on, in the handlers package. The concrete service satisfies it.
 - Routing is stdlib `http.ServeMux` with method patterns (`"GET /books/{id}"`). No third-party router.
@@ -21,12 +21,13 @@ Go HTTP service managing books and a history of the changes made to them.
 | Migration runner | `internal/infrastructure/dbmigrate/` |
 | Migration SQL | `migrations/` |
 | Handlers | `internal/infrastructure/httpserver/handlers/` |
-| Request/response shapes, input validation, pagination | `internal/infrastructure/httpserver/dto/` |
+| Request/response shapes, input validation, pagination, rendering change prose | `internal/infrastructure/httpserver/dto/` |
 | JSON writers, domain-error to status mapping | `internal/infrastructure/httpserver/response/` |
 | Strict JSON body decoding | `internal/infrastructure/httpserver/request/` |
 | Middleware | `internal/infrastructure/httpserver/middleware/` |
 | Dependency wiring | `internal/server/` |
 | OpenAPI spec | `api/openapi.yaml` |
+| Dependency-free helpers usable anywhere | `pkg/` |
 | Tests | `test/<layer>/` |
 
 ## Conventions
@@ -39,6 +40,8 @@ Go HTTP service managing books and a history of the changes made to them.
 - *Business rules* live on the domain type — invariants that must hold however the value was constructed, whoever built it.
 
 Some checks can only happen in the DTO: a `published_on` that doesn't parse never reaches the domain as a `time.Time`. Domain types carry no validation today because no business rule has needed one yet, not because they shouldn't.
+
+**Wrap errors with the step, never the method.** The handler already logs the operation, so `fmt.Errorf("create book: %w", err)` inside `Create` yields `msg="create book" error="create book: ..."` — the same words twice. Wrap with what the caller cannot know: `lock book`, `insert book`, `record change`, `commit`. If a wrap would only repeat the method name, return the error unwrapped.
 
 **Error handling.** Services return `domain` sentinels (`ErrNotFound`, `ErrAlreadyExists`, `ErrInvalidInput`, `ErrAccessDenied`). `response.DomainError` is the single place mapping them to status codes — every new sentinel belongs in that switch or handlers will report it as a 500. Handlers decode, delegate, and encode; they do not validate and do not invent statuses.
 

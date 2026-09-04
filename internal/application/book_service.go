@@ -50,7 +50,6 @@ func (s *BookService) List(ctx context.Context, limit, offset int) ([]domain.Boo
 
 func (s *BookService) Update(ctx context.Context, id string, book domain.Book) (domain.Book, error) {
 	book.ID = id
-	book.UpdatedAt = time.Now().UTC()
 
 	updated, err := s.repo.Update(ctx, book)
 	if err != nil {
