@@ -1,0 +1,8 @@
+# Types only: the spec owns the request and response shapes, handlers stay
+# hand-written. Regenerate with `go generate ./api`.
+package: dto
+output: ../internal/infrastructure/httpserver/dto/openapi_types.gen.go
+generate:
+  models: true
+output-options:
+  name-normalizer: ToCamelCaseWithInitialisms

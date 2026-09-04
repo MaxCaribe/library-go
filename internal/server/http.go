@@ -12,6 +12,7 @@ const maxRequestBodyBytes int64 = 1_000_000 // 1 MB
 
 func newHTTPHandler(_ *appServices, logger *slog.Logger) http.Handler {
 	healthHandler := handlers.NewHeartHandler()
+	docsHandler := handlers.NewDocsHandler()
 
 	recoveryMiddleware := middleware.NewRecoveryMiddleware(logger)
 	bodyLimitMiddleware := middleware.NewBodyLimitMiddleware(maxRequestBodyBytes)
@@ -20,6 +21,7 @@ func newHTTPHandler(_ *appServices, logger *slog.Logger) http.Handler {
 
 	mux := http.NewServeMux()
 	healthHandler.RegisterRoutes(mux)
+	docsHandler.RegisterRoutes(mux)
 
 	// Chain order (outermost -> innermost):
 	// 1. Recovery: catch panics from any layer

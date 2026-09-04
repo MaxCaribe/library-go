@@ -36,6 +36,7 @@ func TestCreateBook(t *testing.T) {
 	assert.Equal(t, "1937-09-21", book.PublishedOn)
 	assert.Equal(t, []string{"J.R.R. Tolkien"}, book.Authors)
 	assert.Equal(t, "/books/"+book.ID, w.Header().Get("Location"))
+	assert.Contains(t, w.Body.String(), `"published_on":"1937-09-21"`, "a date must go on the wire as YYYY-MM-DD, not a timestamp")
 }
 
 func TestCreateBookValidation(t *testing.T) {

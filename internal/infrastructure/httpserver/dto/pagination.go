@@ -10,14 +10,6 @@ const (
 	maxPageSize     = 100
 )
 
-type PaginatedResponse[T any] struct {
-	Data       []T `json:"data"`
-	Total      int `json:"total"`
-	Page       int `json:"page"`
-	PageSize   int `json:"page_size"`
-	TotalPages int `json:"total_pages"`
-}
-
 func ParsePagination(r *http.Request) (int, int) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
@@ -34,20 +26,36 @@ func ParsePagination(r *http.Request) (int, int) {
 	return page, pageSize
 }
 
+// PaginatedResponse is the shape of every collection response. Data is generic
+// so each resource reuses it; PaginationMeta is embedded rather than restated
+// so its fields stay generated from the spec.
+type PaginatedResponse[T any] struct {
+	Data []T `json:"data"`
+	PaginationMeta
+}
+
+func NewPaginatedResponse[T any](data []T, total, page, pageSize int) PaginatedResponse[T] {
+	if data == nil {
+		data = []T{}
+	}
+	return PaginatedResponse[T]{
+		Data: data,
+		PaginationMeta: PaginationMeta{
+			Total:      total,
+			Page:       page,
+			PageSize:   pageSize,
+			TotalPages: TotalPages(total, pageSize),
+		},
+	}
+}
+
 func ComputePagination(page, pageSize int) (limit, offset int) {
 	return pageSize, (page - 1) * pageSize
 }
 
-func NewPaginatedResponse[T any](data []T, total, page, pageSize int) PaginatedResponse[T] {
-	totalPages := (total + pageSize - 1) / pageSize
-	if totalPages < 0 {
-		totalPages = 0
+func TotalPages(total, pageSize int) int {
+	if pageSize < 1 {
+		return 0
 	}
-	return PaginatedResponse[T]{
-		Data:       data,
-		Total:      total,
-		Page:       page,
-		PageSize:   pageSize,
-		TotalPages: totalPages,
-	}
+	return (total + pageSize - 1) / pageSize
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/MaxCaribe/library-go/internal/domain"
 )
 
+// dataEnvelope wraps a single value in a {"data": ...} JSON object.
 type dataEnvelope[T any] struct {
 	Data T `json:"data"`
 }

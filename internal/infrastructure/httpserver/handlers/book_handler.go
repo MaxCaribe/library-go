@@ -75,7 +75,7 @@ func (h *BookHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, dto.NewPaginatedResponse(dto.ToBookResponseList(books), total, page, pageSize))
+	response.JSON(w, http.StatusOK, dto.NewPaginatedResponse(dto.ToBookResponses(books), total, page, pageSize))
 }
 
 func (h *BookHandler) Get(w http.ResponseWriter, r *http.Request) {

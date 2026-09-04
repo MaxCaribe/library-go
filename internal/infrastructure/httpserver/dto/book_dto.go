@@ -16,23 +16,6 @@ const (
 	minPublicationYear = 1000
 )
 
-type BookRequest struct {
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	PublishedOn string   `json:"published_on"`
-	Authors     []string `json:"authors"`
-}
-
-type BookResponse struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	PublishedOn string    `json:"published_on"`
-	Authors     []string  `json:"authors"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-}
-
 func (r BookRequest) Parse() (domain.Book, map[string]string) {
 	fields := map[string]string{}
 
@@ -145,7 +128,7 @@ func ToBookResponse(book domain.Book) BookResponse {
 	}
 }
 
-func ToBookResponseList(books []domain.Book) []BookResponse {
+func ToBookResponses(books []domain.Book) []BookResponse {
 	out := make([]BookResponse, len(books))
 	for i := range books {
 		out[i] = ToBookResponse(books[i])
