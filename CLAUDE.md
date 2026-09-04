@@ -9,7 +9,7 @@ Go HTTP service managing books and a history of the changes made to them.
 - `application` holds use-case services and **declares the repository interfaces it needs**; `infrastructure` implements them.
 - Handlers declare the service interface they depend on, in the handlers package. The concrete service satisfies it.
 - Routing is stdlib `http.ServeMux` with method patterns (`"GET /books/{id}"`). No third-party router.
-- Persistence sits behind repository interfaces declared in `application`. The backing store has not been chosen yet.
+- Persistence is Postgres, reached through `database/sql` over the `jackc/pgx/v5/stdlib` driver. Repositories sit behind interfaces declared in `application`.
 
 ## Where things go
 
@@ -17,7 +17,9 @@ Go HTTP service managing books and a history of the changes made to them.
 |---|---|
 | Entities and pure domain logic | `internal/domain/` |
 | Services + repository interfaces | `internal/application/` |
-| Repository implementations | `internal/infrastructure/<store>/` |
+| Pool, repositories | `internal/infrastructure/postgres/` |
+| Migration runner | `internal/infrastructure/dbmigrate/` |
+| Migration SQL | `migrations/` |
 | Handlers | `internal/infrastructure/httpserver/handlers/` |
 | Request/response shapes, input validation, pagination | `internal/infrastructure/httpserver/dto/` |
 | JSON writers, domain-error to status mapping | `internal/infrastructure/httpserver/response/` |
@@ -70,11 +72,26 @@ Spec conventions worth knowing:
 - `x-go-type: string` on `BookInput.published_on` keeps it a plain string so an unparseable date is a field-level validation error rather than a whole-body decode failure. The response keeps `openapi_types.Date`.
 - One `Error` schema with an optional `fields` map covers both wire shapes. A `oneOf` here would generate a large union type nothing uses.
 
+## Migrations
+
+goose, with `migrations/*.sql` embedded into the binary. One file per change, named `NNNN_snake_case.sql`, each with `-- +goose Up` and `-- +goose Down` sections; the Down section is required so a migration can be rolled back. Never edit an applied migration — add a new one.
+
+The provider runs with `WithAllowOutofOrder(true)`: goose records every applied version, so a branch merged after a higher version has been applied still runs rather than being silently skipped.
+
+```sh
+make db-up            # docker compose up -d postgres
+make migrate-up       # apply pending migrations
+make migrate-status   # per-migration state
+make migrate-down     # roll back one
+make create-migration name=add_book_isbn
+```
+
 ## Commands
 
 ```sh
 make server   # go run ./cmd/server/
 make test     # go test ./...
+make generate # regenerate DTOs from the OpenAPI spec
 go vet ./...
 ```
 

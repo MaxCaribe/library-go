@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -20,16 +21,17 @@ const shutdownTimeout = 15 * time.Second
 
 type App struct {
 	cancelCtx context.CancelFunc
+	infra     io.Closer
 	server    *httpServer.Server
 	logger    *slog.Logger
 }
 
 func New(cfg config.Config) (*App, error) {
-	_, cancelCtx := context.WithCancel(context.Background())
+	ctx, cancelCtx := context.WithCancel(context.Background())
 
 	logger := newLogger(cfg)
 
-	infra, err := newInfra(cfg, logger)
+	infra, err := newInfra(ctx, cfg, logger)
 	if err != nil {
 		cancelCtx()
 		return nil, err
@@ -38,6 +40,8 @@ func New(cfg config.Config) (*App, error) {
 	services, err := newServices(infra, cfg, logger)
 	if err != nil {
 		cancelCtx()
+		// Already failing, so the construction error is the one worth returning.
+		_ = infra.Close()
 		return nil, err
 	}
 
@@ -46,6 +50,7 @@ func New(cfg config.Config) (*App, error) {
 
 	return &App{
 		cancelCtx: cancelCtx,
+		infra:     infra,
 		server:    httpServer.New(handler, addr, logger),
 		logger:    logger,
 	}, nil
@@ -85,6 +90,12 @@ func (a *App) Start() error {
 	if err := a.server.Stop(shutdownCtx); err != nil {
 		a.logger.Error("Server shutdown error", "error", err)
 		return fmt.Errorf("server shutdown error: %w", err)
+	}
+
+	a.logger.InfoContext(shutdownCtx, "Closing infrastructure...")
+	if err := a.infra.Close(); err != nil {
+		a.logger.Error("Infrastructure close error", "error", err)
+		return fmt.Errorf("infrastructure close error: %w", err)
 	}
 
 	a.logger.InfoContext(shutdownCtx, "Graceful shutdown completed")
