@@ -10,7 +10,8 @@ import (
 
 const maxRequestBodyBytes int64 = 1_000_000 // 1 MB
 
-func newHTTPHandler(_ *appServices, logger *slog.Logger) http.Handler {
+func newHTTPHandler(services *appServices, logger *slog.Logger) http.Handler {
+	bookHandler := handlers.NewBookHandler(services.book, logger)
 	healthHandler := handlers.NewHeartHandler()
 	docsHandler := handlers.NewDocsHandler()
 
@@ -20,6 +21,7 @@ func newHTTPHandler(_ *appServices, logger *slog.Logger) http.Handler {
 	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
 
 	mux := http.NewServeMux()
+	bookHandler.RegisterRoutes(mux)
 	healthHandler.RegisterRoutes(mux)
 	docsHandler.RegisterRoutes(mux)
 

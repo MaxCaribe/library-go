@@ -6,6 +6,7 @@ import (
 
 	"github.com/MaxCaribe/library-go/internal/config"
 	"github.com/MaxCaribe/library-go/internal/infrastructure/postgres"
+	"github.com/MaxCaribe/library-go/internal/infrastructure/postgres/repositories"
 )
 
 // appInfra holds the outbound adapters: the database pool, and the
@@ -16,7 +17,9 @@ type appInfra struct {
 	repos appRepos
 }
 
-type appRepos struct{}
+type appRepos struct {
+	book *repositories.BookRepository
+}
 
 func newInfra(ctx context.Context, cfg config.Config, logger *slog.Logger) (*appInfra, error) {
 	db, err := postgres.NewClient(ctx, postgres.Config{
@@ -28,7 +31,12 @@ func newInfra(ctx context.Context, cfg config.Config, logger *slog.Logger) (*app
 		return nil, err
 	}
 
-	return &appInfra{db: db, repos: appRepos{}}, nil
+	return &appInfra{
+		db: db,
+		repos: appRepos{
+			book: repositories.NewBookRepository(db.Pool),
+		},
+	}, nil
 }
 
 func (a *appInfra) Close() error {

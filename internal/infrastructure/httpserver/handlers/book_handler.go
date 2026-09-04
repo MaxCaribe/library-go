@@ -81,7 +81,13 @@ func (h *BookHandler) List(w http.ResponseWriter, r *http.Request) {
 func (h *BookHandler) Get(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	book, err := h.service.Get(ctx, r.PathValue("id"))
+	id := r.PathValue("id")
+	if fields := dto.ValidateBookID(id); len(fields) > 0 {
+		response.ValidationError(w, fields)
+		return
+	}
+
+	book, err := h.service.Get(ctx, id)
 	if err != nil {
 		if response.DomainError(w, err) {
 			return
@@ -97,6 +103,12 @@ func (h *BookHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *BookHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	id := r.PathValue("id")
+	if fields := dto.ValidateBookID(id); len(fields) > 0 {
+		response.ValidationError(w, fields)
+		return
+	}
+
 	var body dto.BookRequest
 	if !request.DecodeJSON(w, r, &body) {
 		return
@@ -108,7 +120,7 @@ func (h *BookHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, err := h.service.Update(ctx, r.PathValue("id"), book)
+	updated, err := h.service.Update(ctx, id, book)
 	if err != nil {
 		if response.DomainError(w, err) {
 			return

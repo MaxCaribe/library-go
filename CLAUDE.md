@@ -42,7 +42,9 @@ Some checks can only happen in the DTO: a `published_on` that doesn't parse neve
 
 **Error handling.** Services return `domain` sentinels (`ErrNotFound`, `ErrAlreadyExists`, `ErrInvalidInput`, `ErrAccessDenied`). `response.DomainError` is the single place mapping them to status codes — every new sentinel belongs in that switch or handlers will report it as a 500. Handlers decode, delegate, and encode; they do not validate and do not invent statuses.
 
-**Receivers.** Pick one kind per type. Prefer value receivers and methods that return a modified copy (`Normalized() T`) over pointer receivers that mutate. Never mix the two on one type.
+**Repositories return values, not pointers** — `(domain.Book, error)`, `[]domain.Book`. Applied to every repository without exception: mixing the two across a codebase is a worse cost than either choice, because each call site becomes a question. A miss is always `domain.ErrNotFound`, never a nil value with a nil error.
+
+**Receivers.** Pick one kind per type and never mix them. Prefer value receivers that return a modified copy over pointer receivers that mutate; use pointer receivers for handles to shared state (`*BookRepository`, `*BookService`).
 
 **Response shapes.** Single resources go in a `{"data": ...}` envelope via `response.WithData`. Collections use `dto.PaginatedResponse[T]` (`data`, `total`, `page`, `page_size`, `total_pages`). Errors are `{"error": "..."}`; validation failures add `fields`. JSON is snake_case via struct tags.
 
@@ -56,7 +58,10 @@ Some checks can only happen in the DTO: a `published_on` that doesn't parse neve
 
 ## Tests
 
-- Integration-style, driving real handlers through a real `http.ServeMux` and asserting status codes and JSON. Prefer them over unit tests with mocks.
+- **Unit tests live beside the code they test**, in the same directory as `package <name>_test`. The external test package keeps them honest about the exported surface, and coverage is attributed to the package under test — a test in a separate directory leaves its target reporting 0%.
+- **`test/` is only for tests that need something outside the process.** Today that is `test/integration` (a real database) plus `test/support` (its harness). If a test needs no external resource, it does not belong there.
+- Integration tests get their database from `TEST_DATABASE_URL` if set, otherwise a Postgres testcontainer (one per package, truncated between tests). With neither Docker nor the variable they **skip** with an instruction rather than failing, so `go test ./...` works anywhere.
+- No fakes or mocks for the service or repository — integration tests drive the real stack.
 - **Layout: test cases first, then helpers, then fakes and mocks last.** A reader is there for the cases, not the plumbing.
 - Table-driven subtests with `t.Run`. `require` for preconditions, `assert` for assertions.
 
@@ -91,9 +96,12 @@ make create-migration name=add_book_isbn
 ```sh
 make server   # go run ./cmd/server/
 make test     # go test ./...
+make cover    # coverage across internal/, including from test/integration
 make generate # regenerate DTOs from the OpenAPI spec
 go vet ./...
 ```
+
+Measure coverage with `make cover`, never plain `go test -cover`: `test/integration` exercises `application` and `repositories` from outside those directories, so without `-coverpkg=./internal/...` they report as untested.
 
 ## Git
 

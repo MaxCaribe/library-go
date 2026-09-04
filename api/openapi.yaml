@@ -107,6 +107,7 @@ paths:
         description: Book identifier
         schema:
           type: string
+          format: uuid
         example: 0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b
 
     get:
@@ -123,6 +124,8 @@ paths:
                 properties:
                   data:
                     $ref: "#/components/schemas/BookResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":

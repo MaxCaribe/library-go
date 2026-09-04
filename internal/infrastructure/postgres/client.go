@@ -12,10 +12,8 @@ import (
 )
 
 const (
-	pingRetries     = 10
-	pingInitialWait = 200 * time.Millisecond
-	// Capped so an unreachable database is reported in seconds. Uncapped
-	// doubling would spend over three minutes before giving up.
+	pingRetries       = 10
+	pingInitialWait   = 200 * time.Millisecond
 	pingMaxWait       = 2 * time.Second
 	connMaxIdleTime   = 3 * time.Minute
 	aliveCheckTimeout = 5 * time.Second
@@ -53,8 +51,6 @@ func NewClient(ctx context.Context, cfg Config, logger *slog.Logger) (*Client, e
 
 	client := &Client{Pool: pool, logger: logger.With("package", "postgres")}
 
-	// The database often is not accepting connections yet when the container
-	// starts alongside this one, so back off rather than failing immediately.
 	if err := client.pingWithRetry(ctx); err != nil {
 		pool.Close()
 		return nil, err

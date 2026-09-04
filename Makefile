@@ -1,10 +1,23 @@
-.PHONY: server test generate build fmt vet tidy db-up db-down migrate-up migrate-down migrate-status create-migration
+.PHONY: server test test-integration cover generate build fmt vet tidy db-up db-down migrate-up migrate-down migrate-status create-migration
 
 server:
 	go run ./cmd/server/
 
 test:
 	go test ./...
+
+# Integration tests start a Postgres container unless TEST_DATABASE_URL points
+# at one already running. Without Docker or that variable, they skip.
+test-integration:
+	go test ./... -count=1
+
+# -coverpkg is required, not cosmetic: test/integration exercises application
+# and repositories from outside those directories, so plain -cover reports them
+# as untested.
+cover:
+	go test -coverpkg=./internal/... -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out | tail -1
+	@echo "html report: go tool cover -html=coverage.out"
 
 generate:
 	go generate ./...

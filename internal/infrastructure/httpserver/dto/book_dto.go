@@ -6,6 +6,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/google/uuid"
+
 	"github.com/MaxCaribe/library-go/internal/domain"
 )
 
@@ -15,6 +17,13 @@ const (
 	maxAuthorLen       = 200
 	minPublicationYear = 1000
 )
+
+func ValidateBookID(id string) map[string]string {
+	if _, err := uuid.Parse(id); err != nil {
+		return map[string]string{"id": "must be a uuid"}
+	}
+	return nil
+}
 
 func (r BookRequest) Parse() (domain.Book, map[string]string) {
 	fields := map[string]string{}
