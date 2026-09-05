@@ -63,10 +63,12 @@ func NewBookAPI(t *testing.T) API {
 	_, err = client.Pool.Exec(ctx, "TRUNCATE books, changes")
 	require.NoError(t, err)
 
-	service := application.NewBookService(repositories.NewBookRepository(client.Pool), logger)
+	books := repositories.NewBookRepository(client.Pool)
+	changes := repositories.NewChangeRepository(client.Pool)
 
 	mux := http.NewServeMux()
-	handlers.NewBookHandler(service, logger).RegisterRoutes(mux)
+	handlers.NewBookHandler(application.NewBookService(books, logger), logger).RegisterRoutes(mux)
+	handlers.NewHistoryHandler(application.NewHistoryService(changes, books, logger), logger).RegisterRoutes(mux)
 	return API{Mux: mux, Pool: client.Pool}
 }
 

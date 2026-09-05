@@ -20,8 +20,8 @@ func TestRenderMatchesTheExamplesFromTheBrief(t *testing.T) {
 		Field: domain.FieldAuthors, Kind: domain.KindAdded, NewValue: ptr("J.R.R. Tolkien"),
 	}
 
-	assert.Equal(t, `Title changed from "The Hobbitt" to "The Hobbit"`, dto.Render(titleFix))
-	assert.Equal(t, `Author "J.R.R. Tolkien" was added`, dto.Render(authorAdded))
+	assert.Equal(t, `Title changed from "The Hobbitt" to "The Hobbit"`, describe(titleFix))
+	assert.Equal(t, `Author "J.R.R. Tolkien" was added`, describe(authorAdded))
 }
 
 func TestRender(t *testing.T) {
@@ -57,7 +57,7 @@ func TestRender(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, dto.Render(tc.change))
+			assert.Equal(t, tc.expected, describe(tc.change))
 		})
 	}
 }
@@ -73,36 +73,42 @@ func TestRenderIsTotal(t *testing.T) {
 
 	for name, change := range tests {
 		t.Run(name, func(t *testing.T) {
-			rendered := dto.Render(change)
+			rendered := describe(change)
 
 			assert.NotEmpty(t, rendered, "a row written by another binary must still read")
 			assert.NotContains(t, rendered, "%!", "no formatting verbs should leak")
 		})
 	}
 
-	assert.Equal(t, `Isbn set to "978-0"`, dto.Render(domain.Change{Field: "isbn", Kind: domain.KindSet, NewValue: ptr("978-0")}))
-	assert.Equal(t, "Title was reordered", dto.Render(domain.Change{Field: domain.FieldTitle, Kind: "reordered"}))
-	assert.Equal(t, "Series position was recalculated", dto.Render(domain.Change{Field: "series_position", Kind: "recalculated"}))
+	assert.Equal(t, `Isbn set to "978-0"`, describe(domain.Change{Field: "isbn", Kind: domain.KindSet, NewValue: ptr("978-0")}))
+	assert.Equal(t, "Title was reordered", describe(domain.Change{Field: domain.FieldTitle, Kind: "reordered"}))
+	assert.Equal(t, "Series position was recalculated", describe(domain.Change{Field: "series_position", Kind: "recalculated"}))
 }
 
 func TestRenderTruncatesLongValues(t *testing.T) {
 	long := strings.Repeat("a", 500)
-	rendered := dto.Render(domain.Change{Field: domain.FieldDescription, Kind: domain.KindSet, NewValue: ptr(long)})
+	rendered := describe(domain.Change{Field: domain.FieldDescription, Kind: domain.KindSet, NewValue: ptr(long)})
 
 	assert.Less(t, len(rendered), 100, "a long description must not render as a wall of text")
 	assert.Contains(t, rendered, "…")
 }
 
 func TestRenderKeepsNonASCIIReadable(t *testing.T) {
-	rendered := dto.Render(domain.Change{Field: domain.FieldAuthors, Kind: domain.KindAdded, NewValue: ptr("Аркадий Стругацкий")})
+	rendered := describe(domain.Change{Field: domain.FieldAuthors, Kind: domain.KindAdded, NewValue: ptr("Аркадий Стругацкий")})
 
 	assert.Equal(t, `Author "Аркадий Стругацкий" was added`, rendered, "strconv.Quote would escape this into \\u sequences")
 }
 
 func TestRenderNeutralisesEmbeddedQuotes(t *testing.T) {
-	rendered := dto.Render(domain.Change{Field: domain.FieldTitle, Kind: domain.KindSet, NewValue: ptr(`The "Hobbit"`)})
+	rendered := describe(domain.Change{Field: domain.FieldTitle, Kind: domain.KindSet, NewValue: ptr(`The "Hobbit"`)})
 
 	assert.Equal(t, `Title set to "The 'Hobbit'"`, rendered)
+}
+
+// describe reaches the renderer the way production does: through the mapper
+// that fills the description field of a change response.
+func describe(change domain.Change) string {
+	return dto.ToChangeResponse(change).Description
 }
 
 func ptr(s string) *string {

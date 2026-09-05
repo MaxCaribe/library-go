@@ -20,7 +20,7 @@ var fieldLabels = map[domain.ChangeField]string{
 
 // Must stay total: a row written by an older or newer binary still has to
 // render, hence the fallback. Never returns an empty string.
-func Render(change domain.Change) string {
+func render(change domain.Change) string {
 	label := fieldLabel(change.Field)
 
 	switch {

@@ -89,6 +89,7 @@ func newMux() *http.ServeMux {
 	handlers.NewHeartHandler().RegisterRoutes(mux)
 	handlers.NewDocsHandler().RegisterRoutes(mux)
 	handlers.NewBookHandler(nil, nil).RegisterRoutes(mux)
+	handlers.NewHistoryHandler(nil, nil).RegisterRoutes(mux)
 	return mux
 }
 

@@ -164,6 +164,95 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /books/{id}/history:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Book identifier
+        schema:
+          type: string
+          format: uuid
+        example: 0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b
+
+    get:
+      tags: [Books]
+      summary: List a book's change history
+      description: |
+        Every field-level change made to the book, newest first by default.
+        Changes made by one request share a `change_set_id` and an `occurred_at`.
+
+        A book that has never been edited has no history; `created_at` on the
+        book records when it appeared.
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: field
+          in: query
+          description: Only changes to these fields. Repeat or comma-separate.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [title, description, published_on, authors]
+        - name: kind
+          in: query
+          description: Only changes of these kinds. Repeat or comma-separate.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [set, added, removed]
+        - name: from
+          in: query
+          description: Only changes at or after this instant (inclusive).
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: Only changes strictly before this instant (exclusive).
+          schema:
+            type: string
+            format: date-time
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [occurred_at, field]
+            default: occurred_at
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        "200":
+          description: A page of changes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginationMeta"
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ChangeResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
 components:
   parameters:
     Page:
@@ -246,6 +335,45 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    ChangeResponse:
+      type: object
+      required: [id, change_set_id, occurred_at, field, kind, description]
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 42
+        change_set_id:
+          type: string
+          format: uuid
+          description: Shared by every change made in the same request.
+          x-go-type: string
+        occurred_at:
+          type: string
+          format: date-time
+        field:
+          type: string
+          enum: [title, description, published_on, authors]
+          x-go-type: string
+        kind:
+          type: string
+          enum: [set, added, removed]
+          x-go-type: string
+        old_value:
+          type: string
+          nullable: true
+          description: Absent when nothing preceded the change, as for an added author.
+          example: The Hobbitt
+        new_value:
+          type: string
+          nullable: true
+          description: Absent when the value was removed.
+          example: The Hobbit
+        description:
+          type: string
+          description: The change in prose, rendered from the fields above.
+          example: Title changed from "The Hobbitt" to "The Hobbit"
 
     PaginationMeta:
       type: object

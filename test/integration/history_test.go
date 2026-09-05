@@ -33,8 +33,8 @@ func TestUpdateRecordsOnlyWhatChanged(t *testing.T) {
 	changes := historyOf(t, api, book.ID)
 	require.Len(t, changes, 2, "only the title and the dropped author changed")
 
-	assert.Equal(t, `Title changed from "The Hobbit" to "The Hobbit, revised"`, dto.Render(changes[0]))
-	assert.Equal(t, `Author "Christopher Tolkien" was removed`, dto.Render(changes[1]))
+	assert.Equal(t, `Title changed from "The Hobbit" to "The Hobbit, revised"`, dto.ToChangeResponse(changes[0]).Description)
+	assert.Equal(t, `Author "Christopher Tolkien" was removed`, dto.ToChangeResponse(changes[1]).Description)
 
 	assert.Equal(t, changes[0].ChangeSetID, changes[1].ChangeSetID, "one request is one change set")
 	assert.Equal(t, changes[0].OccurredAt, changes[1].OccurredAt)

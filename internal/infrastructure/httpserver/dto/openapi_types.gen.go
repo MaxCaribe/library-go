@@ -7,6 +7,87 @@ import (
 	"time"
 )
 
+// Defines values for GetBooksIDHistoryParamsField.
+const (
+	Authors     GetBooksIDHistoryParamsField = "authors"
+	Description GetBooksIDHistoryParamsField = "description"
+	PublishedOn GetBooksIDHistoryParamsField = "published_on"
+	Title       GetBooksIDHistoryParamsField = "title"
+)
+
+// Valid indicates whether the value is a known member of the GetBooksIDHistoryParamsField enum.
+func (e GetBooksIDHistoryParamsField) Valid() bool {
+	switch e {
+	case Authors:
+		return true
+	case Description:
+		return true
+	case PublishedOn:
+		return true
+	case Title:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetBooksIDHistoryParamsKind.
+const (
+	Added   GetBooksIDHistoryParamsKind = "added"
+	Removed GetBooksIDHistoryParamsKind = "removed"
+	Set     GetBooksIDHistoryParamsKind = "set"
+)
+
+// Valid indicates whether the value is a known member of the GetBooksIDHistoryParamsKind enum.
+func (e GetBooksIDHistoryParamsKind) Valid() bool {
+	switch e {
+	case Added:
+		return true
+	case Removed:
+		return true
+	case Set:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetBooksIDHistoryParamsSort.
+const (
+	Field      GetBooksIDHistoryParamsSort = "field"
+	OccurredAt GetBooksIDHistoryParamsSort = "occurred_at"
+)
+
+// Valid indicates whether the value is a known member of the GetBooksIDHistoryParamsSort enum.
+func (e GetBooksIDHistoryParamsSort) Valid() bool {
+	switch e {
+	case Field:
+		return true
+	case OccurredAt:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetBooksIDHistoryParamsOrder.
+const (
+	Asc  GetBooksIDHistoryParamsOrder = "asc"
+	Desc GetBooksIDHistoryParamsOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetBooksIDHistoryParamsOrder enum.
+func (e GetBooksIDHistoryParamsOrder) Valid() bool {
+	switch e {
+	case Asc:
+		return true
+	case Desc:
+		return true
+	default:
+		return false
+	}
+}
+
 // BookRequest defines model for BookRequest.
 type BookRequest struct {
 	// Authors Author names. Must be non-empty and free of duplicates.
@@ -44,6 +125,33 @@ type BookResponse struct {
 	// Title Example: The Hobbit
 	Title     string    `json:"title"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// ChangeResponse defines model for ChangeResponse.
+type ChangeResponse struct {
+	// ChangeSetID Shared by every change made in the same request.
+	ChangeSetID string `json:"change_set_id"`
+
+	// Description The change in prose, rendered from the fields above.
+	//
+	// Example: Title changed from "The Hobbitt" to "The Hobbit"
+	Description string `json:"description"`
+	Field       string `json:"field"`
+
+	// ID Example: 42
+	ID   int64  `json:"id"`
+	Kind string `json:"kind"`
+
+	// NewValue Absent when the value was removed.
+	//
+	// Example: The Hobbit
+	NewValue   *string   `json:"new_value,omitempty"`
+	OccurredAt time.Time `json:"occurred_at"`
+
+	// OldValue Absent when nothing preceded the change, as for an added author.
+	//
+	// Example: The Hobbitt
+	OldValue *string `json:"old_value,omitempty"`
 }
 
 // Error defines model for Error.
@@ -99,6 +207,41 @@ type GetBooksParams struct {
 	// PageSize Items per page, clamped to the maximum
 	PageSize *PageSize `form:"page_size,omitempty" json:"page_size,omitempty"`
 }
+
+// GetBooksIDHistoryParams defines parameters for GetBooksIDHistory.
+type GetBooksIDHistoryParams struct {
+	// Page 1-based page number
+	Page *Page `form:"page,omitempty" json:"page,omitempty"`
+
+	// PageSize Items per page, clamped to the maximum
+	PageSize *PageSize `form:"page_size,omitempty" json:"page_size,omitempty"`
+
+	// Field Only changes to these fields. Repeat or comma-separate.
+	Field *[]GetBooksIDHistoryParamsField `form:"field,omitempty" json:"field,omitempty"`
+
+	// Kind Only changes of these kinds. Repeat or comma-separate.
+	Kind *[]GetBooksIDHistoryParamsKind `form:"kind,omitempty" json:"kind,omitempty"`
+
+	// From Only changes at or after this instant (inclusive).
+	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Only changes strictly before this instant (exclusive).
+	To    *time.Time                    `form:"to,omitempty" json:"to,omitempty"`
+	Sort  *GetBooksIDHistoryParamsSort  `form:"sort,omitempty" json:"sort,omitempty"`
+	Order *GetBooksIDHistoryParamsOrder `form:"order,omitempty" json:"order,omitempty"`
+}
+
+// GetBooksIDHistoryParamsField defines parameters for GetBooksIDHistory.
+type GetBooksIDHistoryParamsField string
+
+// GetBooksIDHistoryParamsKind defines parameters for GetBooksIDHistory.
+type GetBooksIDHistoryParamsKind string
+
+// GetBooksIDHistoryParamsSort defines parameters for GetBooksIDHistory.
+type GetBooksIDHistoryParamsSort string
+
+// GetBooksIDHistoryParamsOrder defines parameters for GetBooksIDHistory.
+type GetBooksIDHistoryParamsOrder string
 
 // PostBooksJSONRequestBody defines body for PostBooks for application/json ContentType.
 type PostBooksJSONRequestBody = BookRequest

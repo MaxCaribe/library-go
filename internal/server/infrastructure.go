@@ -18,7 +18,8 @@ type appInfra struct {
 }
 
 type appRepos struct {
-	book *repositories.BookRepository
+	book   *repositories.BookRepository
+	change *repositories.ChangeRepository
 }
 
 func newInfra(ctx context.Context, cfg config.Config, logger *slog.Logger) (*appInfra, error) {
@@ -34,7 +35,8 @@ func newInfra(ctx context.Context, cfg config.Config, logger *slog.Logger) (*app
 	return &appInfra{
 		db: db,
 		repos: appRepos{
-			book: repositories.NewBookRepository(db.Pool),
+			book:   repositories.NewBookRepository(db.Pool),
+			change: repositories.NewChangeRepository(db.Pool),
 		},
 	}, nil
 }
