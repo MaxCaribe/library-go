@@ -27,25 +27,9 @@ make server
 
 Either way the service refuses to start without a reachable database, and says so: it retries for about fifteen seconds before reporting `postgres: unreachable`.
 
-Then open <http://localhost:8080/docs> for Swagger UI driven by [`api/openapi.yaml`](api/openapi.yaml).
+Then open <http://localhost:8080/docs>. Swagger UI is generated from the served spec, and because the spec and the API share an origin, **Try it out** calls the real service with no CORS configuration — so every endpoint can be exercised from the browser.
 
-```sh
-curl -s -X POST localhost:8080/books -H 'Content-Type: application/json' -d '{
-  "title": "The Hobbitt",
-  "description": "There and back again.",
-  "published_on": "1937-09-21",
-  "authors": ["J.R.R. Tolkien"]
-}'
-
-curl -s -X PUT localhost:8080/books/$ID -H 'Content-Type: application/json' -d '{
-  "title": "The Hobbit",
-  "description": "There and back again.",
-  "published_on": "1937-09-21",
-  "authors": ["J.R.R. Tolkien", "Christopher Tolkien"]
-}'
-
-curl -s "localhost:8080/books/$ID/history?order=asc"
-```
+Create a book, change its title and add an author, then fetch its history. The entries read:
 
 ```
 Title changed from "The Hobbitt" to "The Hobbit"
@@ -147,8 +131,6 @@ There is no index on `kind`: four distinct values make it a poor leading column,
 
 **Authors are an ordered `text[]` column,** not a child table. An author here is a value object with no identity, attributes or lifecycle. The array preserves order natively, needs no join, and turns update into a single column assignment. It also suits the history model: an audit trail should record *values*, not references — with shared author entities, renaming one would silently change what every book looks like with no change set to explain it. Duplicate detection moves to the application layer as a result. Expanding to a join table later is about a dozen lines of SQL using `unnest(authors) WITH ORDINALITY`.
 
-**Validation lives in the DTO layer,** next to the JSON tags, because it's about the request: required fields, sizes, date formats, duplicates. Business invariants would go on the domain type; none has been needed yet.
-
 **The OpenAPI spec owns the wire shapes.** `oapi-codegen` generates the request and response structs from `api/openapi.yaml` in models-only mode, so a renamed field is a compile error rather than a silent lie. Handlers stay hand-written. A test resolves every documented operation against the real mux, and wire-format tests pin the exact JSON, since a changed struct tag breaks clients without breaking the build.
 
 ---
@@ -175,15 +157,3 @@ make cover             # coverage across internal/, including from test/integrat
 Unit tests sit beside the code they cover. `test/integration` drives the real stack — pool, migrations, repository, service, handler — with no fakes or mocks below HTTP. It gets its database from `TEST_DATABASE_URL` if set, otherwise a testcontainer, and skips with an instruction if neither is available, so `go test ./...` works anywhere.
 
 `make cover` rather than `go test -cover`: integration tests exercise `application` and `repositories` from outside those directories, so without `-coverpkg` they report as untested.
-
-## Layout
-
-```
-cmd/server, cmd/migrate      entrypoints
-api/                         OpenAPI spec, embedded and served
-internal/domain              entities, Diff — no dependencies but pkg/
-internal/application         services and the repository interfaces they declare
-internal/infrastructure      httpserver (handlers, dto, middleware) and postgres
-internal/server              manual dependency wiring
-migrations/                  goose SQL, embedded in the binary
-```
