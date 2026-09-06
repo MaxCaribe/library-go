@@ -17,6 +17,6 @@ type appServices struct {
 func newServices(infra *appInfra, _ config.Config, logger *slog.Logger) (*appServices, error) {
 	return &appServices{
 		book:    application.NewBookService(infra.repos.book, logger),
-		history: application.NewHistoryService(infra.repos.change, infra.repos.book, logger),
+		history: application.NewHistoryService(infra.repos.change, infra.repos.book),
 	}, nil
 }

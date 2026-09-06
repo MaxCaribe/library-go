@@ -23,8 +23,8 @@ func NewChangeRepository(pool *pgxpool.Pool) *ChangeRepository {
 	return &ChangeRepository{pool: pool}
 }
 
-func (r *ChangeRepository) List(ctx context.Context, query application.ChangeQuery) ([]domain.Change, int, error) {
-	where := filter(query)
+func (r *ChangeRepository) List(ctx context.Context, f application.ChangeFilter, limit, offset int) ([]domain.Change, int, error) {
+	where := conditions(f)
 
 	var total int
 	if err := r.pool.QueryRow(ctx, `SELECT count(*) FROM changes `+where.WhereClause(), where.Args()...).Scan(&total); err != nil {
@@ -34,10 +34,10 @@ func (r *ChangeRepository) List(ctx context.Context, query application.ChangeQue
 		return nil, 0, nil
 	}
 
-	pagination, args := where.Paginated(query.Limit, query.Offset)
+	pagination, args := where.Paginated(limit, offset)
 	rows, err := r.pool.Query(ctx, fmt.Sprintf(
 		`SELECT %s FROM changes %s %s %s`,
-		changeColumns, where.WhereClause(), orderBy(query), pagination,
+		changeColumns, where.WhereClause(), orderBy(f), pagination,
 	), args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("select page: %w", err)
@@ -50,28 +50,28 @@ func (r *ChangeRepository) List(ctx context.Context, query application.ChangeQue
 	return changes, total, nil
 }
 
-func filter(query application.ChangeQuery) *querybuilder.Builder {
-	where := querybuilder.New().And("book_id = $%d", query.BookID)
+func conditions(f application.ChangeFilter) *querybuilder.Builder {
+	where := querybuilder.New().And("book_id = $%d", f.BookID)
 
-	where.AndAny("field", utils.ToStrings(query.Fields))
-	where.AndAny("kind", utils.ToStrings(query.Kinds))
+	where.AndAny("field", utils.ToStrings(f.Fields))
+	where.AndAny("kind", utils.ToStrings(f.Kinds))
 
-	if query.From != nil {
-		where.And("occurred_at >= $%d", *query.From)
+	if f.From != nil {
+		where.And("occurred_at >= $%d", *f.From)
 	}
-	if query.To != nil {
-		where.And("occurred_at < $%d", *query.To)
+	if f.To != nil {
+		where.And("occurred_at < $%d", *f.To)
 	}
 	return where
 }
 
-func orderBy(query application.ChangeQuery) string {
+func orderBy(f application.ChangeFilter) string {
 	switch {
-	case query.SortBy == application.SortByField && query.Descending:
+	case f.SortBy == application.SortByField && f.Descending:
 		return "ORDER BY field DESC, id DESC"
-	case query.SortBy == application.SortByField:
+	case f.SortBy == application.SortByField:
 		return "ORDER BY field ASC, id ASC"
-	case query.Descending:
+	case f.Descending:
 		return "ORDER BY occurred_at DESC, id DESC"
 	default:
 		return "ORDER BY occurred_at ASC, id ASC"

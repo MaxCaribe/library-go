@@ -68,7 +68,7 @@ func NewBookAPI(t *testing.T) API {
 
 	mux := http.NewServeMux()
 	handlers.NewBookHandler(application.NewBookService(books, logger), logger).RegisterRoutes(mux)
-	handlers.NewHistoryHandler(application.NewHistoryService(changes, books, logger), logger).RegisterRoutes(mux)
+	handlers.NewHistoryHandler(application.NewHistoryService(changes, books), logger).RegisterRoutes(mux)
 	return API{Mux: mux, Pool: client.Pool}
 }
 

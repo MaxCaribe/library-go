@@ -117,11 +117,3 @@ func historyOf(t *testing.T, api support.API, bookID string) []domain.Change {
 	require.NoError(t, err)
 	return changes
 }
-
-func kinds(changes []domain.Change) []string {
-	out := make([]string, len(changes))
-	for i, change := range changes {
-		out[i] = string(change.Field) + "/" + string(change.Kind)
-	}
-	return out
-}

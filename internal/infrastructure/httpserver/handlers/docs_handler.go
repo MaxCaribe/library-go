@@ -41,10 +41,10 @@ func (h *DocsHandler) RegisterRoutes(mux *http.ServeMux) {
 
 func (h *DocsHandler) Spec(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/yaml")
-	w.Write(api.Spec)
+	_, _ = w.Write(api.Spec)
 }
 
 func (h *DocsHandler) UI(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write([]byte(docsPage))
+	_, _ = w.Write([]byte(docsPage))
 }

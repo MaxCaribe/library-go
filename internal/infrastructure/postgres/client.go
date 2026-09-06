@@ -12,11 +12,10 @@ import (
 )
 
 const (
-	pingRetries       = 10
-	pingInitialWait   = 200 * time.Millisecond
-	pingMaxWait       = 2 * time.Second
-	connMaxIdleTime   = 3 * time.Minute
-	aliveCheckTimeout = 5 * time.Second
+	pingRetries     = 10
+	pingInitialWait = 200 * time.Millisecond
+	pingMaxWait     = 2 * time.Second
+	connMaxIdleTime = 3 * time.Minute
 )
 
 type Config struct {
@@ -63,17 +62,6 @@ func NewClient(ctx context.Context, cfg Config, logger *slog.Logger) (*Client, e
 func (c *Client) Close() error {
 	c.Pool.Close()
 	return nil
-}
-
-func (c *Client) IsAlive(ctx context.Context) bool {
-	ctx, cancel := context.WithTimeout(ctx, aliveCheckTimeout)
-	defer cancel()
-
-	if err := c.Pool.Ping(ctx); err != nil {
-		c.logger.ErrorContext(ctx, "postgres ping failed", "error", err)
-		return false
-	}
-	return true
 }
 
 // SQLDB exposes the pool as a *sql.DB. goose speaks database/sql, so migrations

@@ -49,6 +49,14 @@ func (r *BookRepository) GetByID(ctx context.Context, id string) (domain.Book, e
 	return book, err
 }
 
+func (r *BookRepository) Exists(ctx context.Context, id string) (bool, error) {
+	var exists bool
+	if err := r.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM books WHERE id = $1)`, id).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check book exists: %w", err)
+	}
+	return exists, nil
+}
+
 func (r *BookRepository) List(ctx context.Context, limit, offset int) ([]domain.Book, int, error) {
 	var total int
 	if err := r.pool.QueryRow(ctx, `SELECT count(*) FROM books`).Scan(&total); err != nil {

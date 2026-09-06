@@ -18,17 +18,14 @@ var (
 	sortFields   = []application.ChangeSortField{application.SortByOccurredAt, application.SortByField}
 )
 
-// ParseChangeQuery reads the history filters. An unrecognised value is a field
+// ParseChangeFilter reads the history filters. An unrecognised value is a field
 // error, never a silently ignored filter: returning unfiltered data to someone
 // who asked for a subset is worse than refusing.
-func ParseChangeQuery(r *http.Request, bookID string) (application.ChangeQuery, map[string]string) {
+func ParseChangeFilter(r *http.Request, bookID string) (application.ChangeFilter, map[string]string) {
 	fields := map[string]string{}
 	values := r.URL.Query()
 
-	page, pageSize := ParsePagination(r)
-	limit, offset := ComputePagination(page, pageSize)
-
-	query := application.ChangeQuery{
+	filter := application.ChangeFilter{
 		BookID:     bookID,
 		Fields:     parseEnums(values, "field", changeFields, fields),
 		Kinds:      parseEnums(values, "kind", changeKinds, fields),
@@ -36,14 +33,12 @@ func ParseChangeQuery(r *http.Request, bookID string) (application.ChangeQuery, 
 		To:         parseInstant(values.Get("to"), "to", fields),
 		SortBy:     parseSort(values.Get("sort"), fields),
 		Descending: parseDescending(values.Get("order"), fields),
-		Limit:      limit,
-		Offset:     offset,
 	}
 
 	if len(fields) > 0 {
-		return application.ChangeQuery{}, fields
+		return application.ChangeFilter{}, fields
 	}
-	return query, nil
+	return filter, nil
 }
 
 func ToChangeResponse(change domain.Change) ChangeResponse {

@@ -44,7 +44,7 @@ func NewPaginatedResponse[T any](data []T, total, page, pageSize int) PaginatedR
 			Total:      total,
 			Page:       page,
 			PageSize:   pageSize,
-			TotalPages: TotalPages(total, pageSize),
+			TotalPages: totalPages(total, pageSize),
 		},
 	}
 }
@@ -53,7 +53,7 @@ func ComputePagination(page, pageSize int) (limit, offset int) {
 	return pageSize, (page - 1) * pageSize
 }
 
-func TotalPages(total, pageSize int) int {
+func totalPages(total, pageSize int) int {
 	if pageSize < 1 {
 		return 0
 	}

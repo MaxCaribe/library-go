@@ -21,7 +21,6 @@ func NewBookService(repo BookRepository, logger *slog.Logger) *BookService {
 }
 
 func (s *BookService) Create(ctx context.Context, book domain.Book) (domain.Book, error) {
-	// v7 is time-ordered, so the primary key index also reflects insertion order.
 	id, err := uuid.NewV7()
 	if err != nil {
 		return domain.Book{}, fmt.Errorf("generate book id: %w", err)

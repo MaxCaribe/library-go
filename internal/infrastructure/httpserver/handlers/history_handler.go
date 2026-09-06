@@ -12,7 +12,7 @@ import (
 )
 
 type HistoryService interface {
-	ListForBook(ctx context.Context, query application.ChangeQuery) ([]domain.Change, int, error)
+	ListForBook(ctx context.Context, filter application.ChangeFilter, limit, offset int) ([]domain.Change, int, error)
 }
 
 type HistoryHandler struct {
@@ -37,13 +37,16 @@ func (h *HistoryHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query, fields := dto.ParseChangeQuery(r, id)
+	filter, fields := dto.ParseChangeFilter(r, id)
 	if len(fields) > 0 {
 		response.ValidationError(w, fields)
 		return
 	}
 
-	changes, total, err := h.service.ListForBook(ctx, query)
+	page, pageSize := dto.ParsePagination(r)
+	limit, offset := dto.ComputePagination(page, pageSize)
+
+	changes, total, err := h.service.ListForBook(ctx, filter, limit, offset)
 	if err != nil {
 		if response.DomainError(w, err) {
 			return
@@ -53,6 +56,5 @@ func (h *HistoryHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page, pageSize := dto.ParsePagination(r)
 	response.JSON(w, http.StatusOK, dto.NewPaginatedResponse(dto.ToChangeResponses(changes), total, page, pageSize))
 }

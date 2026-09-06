@@ -23,12 +23,12 @@ var fieldLabels = map[domain.ChangeField]string{
 func render(change domain.Change) string {
 	label := fieldLabel(change.Field)
 
-	switch {
-	case change.Kind == domain.KindAdded:
+	switch change.Kind {
+	case domain.KindAdded:
 		return fmt.Sprintf("%s %s was added", label, quote(utils.Dereference(change.NewValue)))
-	case change.Kind == domain.KindRemoved:
+	case domain.KindRemoved:
 		return fmt.Sprintf("%s %s was removed", label, quote(utils.Dereference(change.OldValue)))
-	case change.Kind == domain.KindSet:
+	case domain.KindSet:
 		return renderSet(label, change)
 	}
 	return fmt.Sprintf("%s was %s", label, change.Kind)
