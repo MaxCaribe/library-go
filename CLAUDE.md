@@ -108,4 +108,4 @@ Measure coverage with `make cover`, never plain `go test -cover`: `test/integrat
 
 ## Git
 
-Commit messages are plain imperative with no `feat:`/`chore:` prefix, matching `9cf8b34 bootstrap layered HTTP service skeleton`. **Never run git commands** — the user reviews and commits each step themselves.
+Commits are made by hand, after review — tooling should not create them.
